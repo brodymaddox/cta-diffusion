@@ -1,0 +1,9 @@
+# Packages #
+############
+*.gz
+*.tar
+
+#Virtual Environment
+venv/
+custom-model/cifar-10-batches-py/
+__pycache__/
