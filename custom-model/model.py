@@ -1,5 +1,5 @@
 # Written by Brody Maddox
-# Code Directly lifted from https://www.youtube.com/watch?v=a4Yfz2FxXiY
+# Code Adapted from https://www.youtube.com/watch?v=a4Yfz2FxXiY
 
 import torch
 import torch.nn.functional as F
@@ -21,7 +21,7 @@ class Block(nn.Module):
             self.transform = nn.ConvTranspose2d(out_ch, out_ch, 4, 2, 1)
         else:
             self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
-            self.transform = nn.Conv2d(out_ch, out_ch, 4, 2, 1)
+            self.transform = nn.MaxPool2d(kernel_size=2)
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
         self.bnorm1 = nn.BatchNorm2d(out_ch)
         self.bnorm2 = nn.BatchNorm2d(out_ch)
