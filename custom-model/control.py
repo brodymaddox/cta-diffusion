@@ -130,4 +130,5 @@ for epoch in range(epochs):
 
         if epoch % 5 == 0 and step == 0:
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
-            sample_plot_image()
+
+sample_plot_image()
