@@ -5,6 +5,12 @@ import pandas as pd
 from PIL import Image
 import numpy as np
 
+"""
+TODO: 
+    Fix image access to account for slice
+    Need to implement conditioning
+"""
+
 class CTAngiographyDataset(Dataset):
 
     def __init__(self, root_dir, csv, transform=None, conditioning=False, condition_columns=[]):

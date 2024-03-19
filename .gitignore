@@ -3,7 +3,17 @@
 *.gz
 *.tar
 
-#Virtual Environment
+# Virtual Environment #
+#######################
 venv/
+
+
+# Data #
+########
+data/*
+experiments/*
 custom-model/cifar-10-batches-py/
+
+# Utilities #
+#############
 __pycache__/
