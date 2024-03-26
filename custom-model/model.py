@@ -104,5 +104,95 @@ class SimpleUnet(nn.Module):
             x = torch.cat((x, residual_x), dim=1)
             x = up(x, t)
         return self.output(x)
+    
+
+
+class ChannelConditionalUNET(nn.Module):
+    """
+    A U-net that appends conditional data as additional channels before each double convolution block
+    Before use must fill in image_sizes, conditional channels, init_cond_channels
+    """
+    def __init__(self):
+        super().__init__()
+        image_channels = 3
+        self.batch_size = 128
+        self.image_sizes = [(32,32), (16,16), (8,8), (4,4), (2,2)]
+        self.init_cond_channels = 1
+        self.conditional_channels = [1, 1, 1, 1, 1]
+        self.up_conditional_channels = self.conditional_channels[::-1]
+        self.up_img_sizes = self.image_sizes[::-1]
+        down_channels = (64, 128, 256, 512, 1024)
+        up_channels = (1024, 512, 256, 128, 64)
+        out_dim = 1
+        time_emb_dim = 32
+
+        # Time Embedding
+        self.time_mlp = nn.Sequential(
+            SinusoidalPositionEmbeddings(time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
+            nn.ReLU()
+        )
+
+        # Initial Projection
+        self.conv0 = nn.Conv2d(image_channels + self.init_cond_channels, down_channels[0], 3, padding=1)
+
+        # Downsample
+        self.downs = nn.ModuleList([Block(down_channels[i] + self.conditional_channels[i], down_channels[i+1], \
+                                          time_emb_dim) for i in range(len(down_channels)-1)])
+        
+        # Upsample
+        self.ups = nn.ModuleList([Block(up_channels[i] + self.up_conditional_channels[i], up_channels[i+1], \
+                                        time_emb_dim, up=True) for i in range(len(up_channels)-1)])
+        
+        self.output = nn.Conv2d(up_channels[-1], 3, out_dim)
+
+    def forward(self, x, condition, timestep):
+        """
+        Forward propogation that concatenates condition tensor at each stage
+        """
+        # Embed time
+        t = self.time_mlp(timestep)
+
+        # Initialize master copy of condition
+        cond = condition
+
+        # Initial condition reshape
+        cond0 = torch.reshape(condition, (self.batch_size, self.init_cond_channels, self.image_sizes[0][0], self.image_sizes[0][1]))
+
+        # Initial Concatenation
+        x = torch.cat((x, cond0), dim=1)
+
+        # Initial conv
+        x = self.conv0(x)
+
+        # Unet
+        residual_inputs = []
+        for i, down in enumerate(self.downs):
+
+            # Create condition tensor and concatenate
+            cond = torch.reshape(condition, (self.batch_size, self.conditional_channels[i], self.image_sizes[i][0], self.image_sizes[i][1]))
+            x = torch.cat((x, cond), dim=1)
+
+            # Conduct the down block
+            x = down(x, t)
+
+            # Store residual input for later
+            residual_inputs.append(x)
+
+        for i, up in enumerate(self.ups):
+
+            # Create condition tensor
+            cond = torch.reshape(condition, (self.batch_size, self.up_conditional_channels[i], self.up_img_sizes[i][0], self.up_img_sizes[i][1]))
+
+            # Access residual input
+            residual_x = residual_inputs.pop()
+
+            # Add residual and condition as additional channels
+            x = torch.cat((x, residual_x, cond), dim=1)
+
+            # Conduct the up block
+            x = up(x, t)
+
+        return self.output(x)
         
 
