@@ -2,19 +2,19 @@
 
 import os
 import shutil
-
-"""
-TODO:
-    Need to create annotations.csv
-"""
+import pandas as pd
+import math
 
 """  Setup Variables """
 
 # Experiment Parameters
 upper_slice = 132 # Max 132
 lower_slice = 0 # Min 0
-slice_stride = 1
+slice_stride = 1 # Min 1 Max (upper-lower)
 experiment_name = 'test_exp'
+
+# Set which columns experiment will be conditioned on
+condition_columns = ['slice', 'age', 'gender', 'race', 'cta_occlusion_site'] # Options: slice, age, gender, race, cta_occlusion_site, tpa, lkw2ct, baseline_nihss, lvo
 
 # Get array of all slices for this experiment
 experiment_slices = [x for x in range(lower_slice, upper_slice, slice_stride)]
@@ -50,12 +50,67 @@ os.chdir('../../..')
 os.chdir('data')
 os.chdir('CTA_By_Slice')
 
+# Setup empty annotations
+annotations = []
+
+# Read master conditioning data
+df0 = pd.read_csv("/home/brody/Laboratory/cta-diffusion/data/train_info.csv")
+df1 = pd.read_csv("/home/brody/Laboratory/cta-diffusion/data/val_info.csv")
+masterDf = pd.concat([df0, df1], ignore_index=True, sort=False)
+
 # Copy images from all selected slices into img_path
 for slice in experiment_slices:
     path = 'slice_' + str(slice) + '/'
     for file in os.listdir(path):
-        shutil.copy(os.path.join(path, file), img_path)
+
+        # Initialize annotations row and place filename
+        annotations_row = []
+        annotations_row.append(file)
+
+        # Extract which patient image is of
+        patient_id = file[:8]
+
+        # Extract slice
+        if 'slice' in condition_columns:
+            sl = file[len(file)-7:len(file)-4]
+            if sl[1] == '_': sl = sl[2] # Case for slice 0-9
+            if sl[0] == '_': sl = sl[1:] # Case for slice 10-99
+
+            # Add slice to annotations_row
+            annotations_row.append(int(sl))
+
+        # Get Conditions 
+        conditions = masterDf.loc[masterDf['subjId']==patient_id]
+
+        # If condition is in the specified columns, and in dataframe, append value
+        for condition in condition_columns:
+            try:
+                annotations_row.append(conditions.iloc[0][condition])
+            except:
+                pass
         
+        will_add = True # Boolean to track whether or not we should add this image and annotations to our experiment
+
+        # If annotations row contains an empty value, skip this image
+        for val in annotations_row[1:]: # Skip the string identifier column
+            if math.isnan(val):
+                will_add = False
+
+        if will_add:        
+             # Add annotations to master annotations
+            annotations.append(annotations_row)
+            # Copy image to experiment image folder
+            shutil.copy(os.path.join(path, file), img_path)
+
+# Create column names for annotations.csv
+final_column_names = condition_columns
+final_column_names.insert(0, 'subjId')
+
+# Turn annotations into DataFrame
+annotations_df = pd.DataFrame(annotations, columns=final_column_names)
+
+# Write annotations.csv
+annotations_df.to_csv(os.path.join(exp_path, 'annotations.csv'), index=False)
 
 
 
