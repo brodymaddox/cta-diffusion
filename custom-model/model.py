@@ -114,11 +114,11 @@ class ChannelConditionalUNET(nn.Module):
     """
     def __init__(self):
         super().__init__()
-        image_channels = 3
-        self.batch_size = 128
-        self.image_sizes = [(32,32), (16,16), (8,8), (4,4), (2,2)]
-        self.init_cond_channels = 1
-        self.conditional_channels = [1, 1, 1, 1, 1]
+        image_channels = 1
+        self.batch_size = 8
+        self.image_sizes = [(256,256), (128,128), (64,64), (32,32), (16,16)]
+        self.init_cond_channels = 2
+        self.conditional_channels = [2, 2, 2, 2, 2]
         self.up_conditional_channels = self.conditional_channels[::-1]
         self.up_img_sizes = self.image_sizes[::-1]
         down_channels = (64, 128, 256, 512, 1024)
@@ -141,10 +141,11 @@ class ChannelConditionalUNET(nn.Module):
                                           time_emb_dim) for i in range(len(down_channels)-1)])
         
         # Upsample
-        self.ups = nn.ModuleList([Block(up_channels[i] + self.up_conditional_channels[i], up_channels[i+1], \
+        self.ups = nn.ModuleList([Block(up_channels[i] + int(self.up_conditional_channels[i]/2), up_channels[i+1], \
                                         time_emb_dim, up=True) for i in range(len(up_channels)-1)])
+        # Quick and dirty fix, the up block doubles the inputted channels to account for residuals, so we only want to add half of the conditioning channels
         
-        self.output = nn.Conv2d(up_channels[-1], 3, out_dim)
+        self.output = nn.Conv2d(up_channels[-1], 1, out_dim)
 
     def forward(self, x, condition, timestep):
         """
@@ -157,7 +158,8 @@ class ChannelConditionalUNET(nn.Module):
         cond = condition
 
         # Initial condition reshape
-        cond0 = torch.reshape(condition, (self.batch_size, self.init_cond_channels, self.image_sizes[0][0], self.image_sizes[0][1]))
+        cond0 = cond.unsqueeze(-1).unsqueeze(-1).expand(-1,-1,self.image_sizes[0][0], self.image_sizes[0][1])
+        cond0 = cond0.to('cuda')
 
         # Initial Concatenation
         x = torch.cat((x, cond0), dim=1)
@@ -170,7 +172,8 @@ class ChannelConditionalUNET(nn.Module):
         for i, down in enumerate(self.downs):
 
             # Create condition tensor and concatenate
-            cond = torch.reshape(condition, (self.batch_size, self.conditional_channels[i], self.image_sizes[i][0], self.image_sizes[i][1]))
+            cond = condition.unsqueeze(-1).unsqueeze(-1).expand(-1,-1,self.image_sizes[i][0], self.image_sizes[i][0])
+            cond = cond.to('cuda')
             x = torch.cat((x, cond), dim=1)
 
             # Conduct the down block
@@ -182,14 +185,15 @@ class ChannelConditionalUNET(nn.Module):
         for i, up in enumerate(self.ups):
 
             # Create condition tensor
-            cond = torch.reshape(condition, (self.batch_size, self.up_conditional_channels[i], self.up_img_sizes[i][0], self.up_img_sizes[i][1]))
+            cond = condition.unsqueeze(-1).unsqueeze(-1).expand(-1,-1,self.up_img_sizes[i][0], self.up_img_sizes[i][0])
+            cond = cond.to('cuda')
 
             # Access residual input
             residual_x = residual_inputs.pop()
 
             # Add residual and condition as additional channels
             x = torch.cat((x, residual_x, cond), dim=1)
-
+            
             # Conduct the up block
             x = up(x, t)
 

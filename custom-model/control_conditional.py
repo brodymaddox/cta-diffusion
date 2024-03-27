@@ -54,10 +54,10 @@ sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
 posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
 
 @torch.no_grad()
-def sample_timestep(x, t):
+def sample_timestep(x, condition, t):
     """
-    Calls the model to predict the noise in the image and returns 
-    the denoised image. 
+    Calls the model to predict the noise in the image and returns
+    the denoised image.
     Applies noise to this image, if we are not in the last step yet.
     """
     betas_t = get_index_from_list(betas, t, x.shape)
@@ -65,26 +65,28 @@ def sample_timestep(x, t):
         sqrt_one_minus_alphas_cumprod, t, x.shape
     )
     sqrt_recip_alphas_t = get_index_from_list(sqrt_recip_alphas, t, x.shape)
-    
+
     # Call model (current image - noise prediction)
     model_mean = sqrt_recip_alphas_t * (
-        x - betas_t * unet(x, t) / sqrt_one_minus_alphas_cumprod_t
+        x - betas_t * unet(x, condition, t) / sqrt_one_minus_alphas_cumprod_t
     )
     posterior_variance_t = get_index_from_list(posterior_variance, t, x.shape)
-    
+
     if t == 0:
         # As pointed out by Luis Pereira (see YouTube comment)
         # The t's are offset from the t's in the paper
         return model_mean
     else:
         noise = torch.randn_like(x)
-        return model_mean + torch.sqrt(posterior_variance_t) * noise 
+        return model_mean + torch.sqrt(posterior_variance_t) * noise
 
 @torch.no_grad()
 def sample_plot_image():
     # Sample noise
     img_size = IMG_SIZE
     img = torch.randn((1, 1, img_size, img_size), device=device)
+    cond = torch.randn(1, 2, device=device)
+    print(cond)
     plt.figure(figsize=(15,15))
     plt.axis('off')
     num_images = 10
@@ -92,7 +94,7 @@ def sample_plot_image():
 
     for i in range(0,T)[::-1]:
         t = torch.full((1,), i, device=device, dtype=torch.long)
-        img = sample_timestep(img, t)
+        img = sample_timestep(img,cond, t)
         # Edit: This is to maintain the natural range of the distribution
         img = torch.clamp(img, -1.0, 1.0)
         if i % stepsize == 0:
@@ -101,10 +103,10 @@ def sample_plot_image():
     plt.show()
 
 # Loss Function
-    
-def get_loss(model, x_0, t):
+
+def get_loss(model, x_0, condition, t):
     x_noisy, noise = forward_diffusion_sample(x_0, t, device)
-    noise_pred = model(x_noisy, t)
+    noise_pred = model(x_noisy, condition, t)
     return F.l1_loss(noise, noise_pred)
 
 # Load up Data
@@ -112,20 +114,22 @@ def get_loss(model, x_0, t):
 IMG_SIZE = 256
 BATCH_SIZE = 8
 
-data = dataloader.load_transformed_dataset(IMG_SIZE)
+data = dataloader.load_transformed_conditional_dataset(IMG_SIZE)
 datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
 # Create Model
-unet = model.SimpleUnet()
+unet = model.ChannelConditionalUNET()
 unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
 epochs = 30
 
 for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):
+        img = batch[0]
+        condition = batch[1]
         optimizer.zero_grad()
         t = torch.randint(0, T, (BATCH_SIZE,), device=device).long()
-        loss = get_loss(unet, batch, t)
+        loss = get_loss(unet, img, condition, t)
         loss.backward()
         optimizer.step()
         if step % 1000 == 0:
@@ -135,3 +139,5 @@ for epoch in tqdm(range(epochs), desc='Training Progress'):
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
 
 sample_plot_image()
+
+

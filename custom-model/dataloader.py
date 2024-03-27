@@ -20,6 +20,17 @@ def load_transformed_dataset(IMG_SIZE):
     data = cta_dataset.CTAngiographyNoConditionDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform)
     return data
 
+def load_transformed_conditional_dataset(IMG_SIZE):
+    data_transforms = [
+        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(), # Scales data to [0,1]
+        transforms.Lambda(lambda t: (t*2)-1) # Scales between [-1,1]
+    ]
+    data_transform = transforms.Compose(data_transforms)
+    data = cta_dataset.CTAngiographyDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform, conditioning=True, condition_columns=                                            ['gender','age'])
+    return data
+
 def show_tensor_image(image):
     reverse_transforms = transforms.Compose([
         transforms.Lambda(lambda t: (t+1)/2),
