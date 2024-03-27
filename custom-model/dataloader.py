@@ -1,5 +1,5 @@
 # Written by Brody Maddox
-# Directly lifted from https://www.youtube.com/watch?v=a4Yfz2FxXiY
+# Adapted from https://www.youtube.com/watch?v=a4Yfz2FxXiY
 
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torchvision
+import cta_dataset
 
 def load_transformed_dataset(IMG_SIZE):
     data_transforms = [
@@ -16,11 +17,8 @@ def load_transformed_dataset(IMG_SIZE):
         transforms.Lambda(lambda t: (t*2)-1) # Scales between [-1,1]
     ]
     data_transform = transforms.Compose(data_transforms)
-    train = torchvision.datasets.CIFAR10(root=".", download=True,
-                                              transform=data_transform, train=True)
-    test = torchvision.datasets.CIFAR10(root=".", download=True,
-                                              transform=data_transform, train=False)
-    return torch.utils.data.ConcatDataset([train, test])
+    data = cta_dataset.CTAngiographyNoConditionDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform)
+    return data
 
 def show_tensor_image(image):
     reverse_transforms = transforms.Compose([

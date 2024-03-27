@@ -21,11 +21,11 @@ class CTAngiographyDataset(Dataset):
         """
         self.root_dir = root_dir
         self.transform = transform 
-        self.context_df = pd.read_csv(csv)
+        self.context_df = pd.read_csv(os.path.join(root_dir, csv))
         self.conditioning = conditioning
         self.condition_columns = condition_columns
 
-    def len(self):
+    def __len__(self):
         return len(self.context_df)
     
     def __getitem__(self, idx):
@@ -36,13 +36,13 @@ class CTAngiographyDataset(Dataset):
         |-- images
                 |-- img1.png
                 |-- img2.png
-        |-- annotations.csv [index, name, slice]
+        |-- annotations.csv [index, subjId, slice, conditioning columns]
 
 
         annotations.csv will contain a row for every slice and its relevant clinical data -> duplicate clinical data rows.
         """
-        img_name = os.path.join(self.root_dir + "/images/", self.context_df['name'][idx])
-        img = read_image(img_name)
+        img_name = os.path.join(self.root_dir + "/images/", self.context_df['subjId'][idx])
+        img = Image.open(img_name)
         
         if self.transform:
             img = self.transform(img)
@@ -51,7 +51,6 @@ class CTAngiographyDataset(Dataset):
             condition = []
             for col in self.condition_columns:
                 condition.append(self.context_df[col][idx])
-            condition = [float(i)/sum(condition) for i in condition] # Normalize with respect to the sum
             return img, torch.FloatTensor(condition)
         else:
             return img
@@ -67,10 +66,10 @@ class CTAngiographyNoConditionDataset(Dataset):
         """
         self.root_dir = root_dir
         self.transform = transform
-        self.annotations = pd.read_csv(csv)
+        self.context_df = pd.read_csv(os.path.join(root_dir, csv))
 
-    def len(self):
-        return self.length
+    def __len__(self):
+        return len(self.context_df)
     
     def __getitem__(self, idx):
         """
@@ -80,15 +79,16 @@ class CTAngiographyNoConditionDataset(Dataset):
         |-- images
                 |-- img1.png
                 |-- img2.png
-        | annotations.csv [index, name]
+        | annotations.csv [index, subjId]
         """
-        img_name = os.path.join(self.root_dir + "/images/", self.context_df['name'][idx])
-        img = read_image(img_name)
+        img_name = os.path.join(self.root_dir + "/images/", self.context_df['subjId'][idx])
+        img = Image.open(img_name)
         
         if self.transform:
             img = self.transform(img)
-
-        return img
+        
+        
+        return img.float()
 
 
 

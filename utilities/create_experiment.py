@@ -1,9 +1,11 @@
 # Written by Brody Maddox
 
 import os
+import numpy as np
 import shutil
 import pandas as pd
 import math
+from sklearn import preprocessing
 
 """  Setup Variables """
 
@@ -109,8 +111,15 @@ final_column_names.insert(0, 'subjId')
 # Turn annotations into DataFrame
 annotations_df = pd.DataFrame(annotations, columns=final_column_names)
 
+# Normalize annotations.csv
+x = annotations_df.values
+min_max_scaler = preprocessing.MinMaxScaler()
+x_scaled = min_max_scaler.fit_transform(x[:,1:])
+x_combined = np.hstack((x[:, [0]], x_scaled))
+annotations_df_normalized = pd.DataFrame(x_combined, columns=final_column_names)
+
 # Write annotations.csv
-annotations_df.to_csv(os.path.join(exp_path, 'annotations.csv'), index=False)
+annotations_df_normalized.to_csv(os.path.join(exp_path, 'annotations.csv'), index=False)
 
 
 

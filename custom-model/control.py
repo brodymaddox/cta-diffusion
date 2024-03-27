@@ -3,6 +3,7 @@
 
 import dataloader
 import model
+from tqdm import tqdm
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
@@ -33,6 +34,7 @@ def forward_diffusion_sample(x_0, t, device="cpu"):
         sqrt_one_minus_alphas_cumprod, t, x_0.shape
     )
     # mean + variance
+    #print((sqrt_alphas_cumprod_t.to(device) * x_0.to(device) + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device)).shape)
     return sqrt_alphas_cumprod_t.to(device) * x_0.to(device) \
     + sqrt_one_minus_alphas_cumprod_t.to(device) * noise.to(device), noise.to(device)
 
@@ -107,28 +109,30 @@ def get_loss(model, x_0, t):
 
 # Load up Data
 
-IMG_SIZE = 32
-BATCH_SIZE = 128
+IMG_SIZE = 256
+BATCH_SIZE = 8
 
 data = dataloader.load_transformed_dataset(IMG_SIZE)
 datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
 # Create Model
 unet = model.SimpleUnet()
-print(unet)
 unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
 epochs = 100
 
-for epoch in range(epochs):
+for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):
         optimizer.zero_grad()
         t = torch.randint(0, T, (BATCH_SIZE,), device=device).long()
-        loss = get_loss(unet, batch[0], t)
+        loss = get_loss(unet, batch, t)
         loss.backward()
         optimizer.step()
 
-        if epoch % 5 == 0 and step == 0:
+        if step % 1000 == 0:
+            print(f"Step {step:03d} Loss: {loss.item()}")
+
+        if epoch % 1 == 0 and step == 0:
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
 
 sample_plot_image()
