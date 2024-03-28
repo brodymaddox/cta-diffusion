@@ -120,7 +120,7 @@ datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_l
 unet = model.SimpleUnet()
 unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
-epochs = 1
+epochs = 0
 
 for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):

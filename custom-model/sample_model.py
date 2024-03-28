@@ -7,9 +7,9 @@ import torch.nn.functional as F
 # setup sample
 
 experiment_to_sample = 'test_exp'
-model_to_sample = 'test_model_cond_v1'
+model_to_sample = 'test_model_v1'
 desired_num_samples = 1
-conditional = True # If true, sample conditionally
+conditional = False # If true, sample conditionally
 IMG_SIZE = 256
 
 # Move to experiments
