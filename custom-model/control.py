@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torch.optim import Adam
+import os
 
 # Noise Scheduler Functions / Precomputed Values
 
@@ -119,7 +120,7 @@ datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_l
 unet = model.SimpleUnet()
 unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
-epochs = 30
+epochs = 1
 
 for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):
@@ -134,4 +135,12 @@ for epoch in tqdm(range(epochs), desc='Training Progress'):
         if epoch % 1 == 0 and step == 0:
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
 
-sample_plot_image()
+# Need to know what experiment we are running to save model to proper folder
+current_experiment_name = 'test_exp'
+os.chdir('..')
+os.chdir('experiments')
+exp_path = os.path.join(os.getcwd(), current_experiment_name)
+
+model_name = 'test_model_v1'
+
+torch.save(unet, os.path.join(exp_path, model_name))

@@ -20,7 +20,7 @@ def load_transformed_dataset(IMG_SIZE):
     data = cta_dataset.CTAngiographyNoConditionDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform)
     return data
 
-def load_transformed_conditional_dataset(IMG_SIZE):
+def load_transformed_conditional_dataset(IMG_SIZE, conditioning_columns=[]):
     data_transforms = [
         transforms.Resize((IMG_SIZE, IMG_SIZE)),
         transforms.RandomHorizontalFlip(),
@@ -28,7 +28,8 @@ def load_transformed_conditional_dataset(IMG_SIZE):
         transforms.Lambda(lambda t: (t*2)-1) # Scales between [-1,1]
     ]
     data_transform = transforms.Compose(data_transforms)
-    data = cta_dataset.CTAngiographyDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform, conditioning=True, condition_columns=                                            ['gender','age'])
+    data = cta_dataset.CTAngiographyDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform, conditioning=True, 
+                                            condition_columns=conditioning_columns)
     return data
 
 def show_tensor_image(image):
@@ -37,11 +38,10 @@ def show_tensor_image(image):
         transforms.Lambda(lambda t: t.permute(1,2,0)), #CHW to HWC
         transforms.Lambda(lambda t: t * 255.),
         transforms.Lambda(lambda t: t.numpy().astype(np.uint8)),
-        transforms.ToPILImage(),
     ])
 
     # Take first image of batch
     if len(image.shape) == 4:
         image = image[0, :, :, :]
-    plt.imshow(reverse_transforms(image))
+    plt.imshow(reverse_transforms(image).squeeze(), cmap='gray')
 

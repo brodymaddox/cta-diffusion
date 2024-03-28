@@ -1,16 +1,28 @@
-# Written by Brody Maddox
-# Adapted from https://www.youtube.com/watch?v=a4Yfz2FxXiY
-
-import dataloader
-import model
-from tqdm import tqdm
 import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from torch.optim import Adam
 import os
+import dataloader
+import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
-# Noise Scheduler Functions / Precomputed Values
+# setup sample
+
+experiment_to_sample = 'test_exp'
+model_to_sample = 'test_model_cond_v1'
+desired_num_samples = 1
+conditional = True # If true, sample conditionally
+IMG_SIZE = 256
+
+# Move to experiments
+
+os.chdir('..')
+os.chdir('experiments')
+os.chdir(experiment_to_sample)
+
+# Load Model
+unet = torch.load(os.path.join(os.getcwd(), model_to_sample))
+unet.eval()
+
+# Code to actualy sample (directly from control)
 
 def linear_beta_schedule(timesteps, start=0.0001, end=0.02):
     return torch.linspace(start, end, timesteps)
@@ -55,7 +67,57 @@ sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
 posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
 
 @torch.no_grad()
-def sample_timestep(x, condition, t):
+def sample_timestep(x, t):
+    """
+    Calls the model to predict the noise in the image and returns
+    the denoised image.
+    Applies noise to this image, if we are not in the last step yet.
+    """
+    betas_t = get_index_from_list(betas, t, x.shape)
+    sqrt_one_minus_alphas_cumprod_t = get_index_from_list(
+        sqrt_one_minus_alphas_cumprod, t, x.shape
+    )
+    sqrt_recip_alphas_t = get_index_from_list(sqrt_recip_alphas, t, x.shape)
+
+    # Call model (current image - noise prediction)
+    model_mean = sqrt_recip_alphas_t * (
+        x - betas_t * unet(x, t) / sqrt_one_minus_alphas_cumprod_t
+    )
+    posterior_variance_t = get_index_from_list(posterior_variance, t, x.shape)
+
+    if t == 0:
+        # As pointed out by Luis Pereira (see YouTube comment)
+        # The t's are offset from the t's in the paper
+        return model_mean
+    else:
+        noise = torch.randn_like(x)
+        return model_mean + torch.sqrt(posterior_variance_t) * noise
+
+
+@torch.no_grad()
+def sample_plot_image():
+    # Sample noise
+    img_size = IMG_SIZE
+    img = torch.randn((1, 1, img_size, img_size), device=device)
+    plt.figure(figsize=(15,15))
+    plt.axis('off')
+    num_images = 10
+    stepsize = int(T/num_images)
+
+    for i in range(0,T)[::-1]:
+        t = torch.full((1,), i, device=device, dtype=torch.long)
+        img = sample_timestep(img, t)
+        # Edit: This is to maintain the natural range of the distribution
+        img = torch.clamp(img, -1.0, 1.0)
+        if i % stepsize == 0:
+            plt.subplot(1, num_images, int(i/stepsize)+1)
+            dataloader.show_tensor_image(img.detach().cpu())
+    plt.show()
+
+# Code to sample conditionally    
+
+@torch.no_grad()
+def sample_timestep_cond(x, condition, t):
     """
     Calls the model to predict the noise in the image and returns
     the denoised image.
@@ -82,7 +144,7 @@ def sample_timestep(x, condition, t):
         return model_mean + torch.sqrt(posterior_variance_t) * noise
 
 @torch.no_grad()
-def sample_plot_image():
+def sample_plot_image_cond():
     # Sample noise
     img_size = IMG_SIZE
     img = torch.randn((1, 1, img_size, img_size), device=device)
@@ -95,7 +157,7 @@ def sample_plot_image():
 
     for i in range(0,T)[::-1]:
         t = torch.full((1,), i, device=device, dtype=torch.long)
-        img = sample_timestep(img,cond,t)
+        img = sample_timestep_cond(img,cond,t)
         # Edit: This is to maintain the natural range of the distribution
         img = torch.clamp(img, -1.0, 1.0)
         if i % stepsize == 0:
@@ -103,49 +165,11 @@ def sample_plot_image():
             dataloader.show_tensor_image(img.detach().cpu())
     plt.show()
 
-# Loss Function
 
-def get_loss(model, x_0, condition, t):
-    x_noisy, noise = forward_diffusion_sample(x_0, t, device)
-    noise_pred = model(x_noisy, condition, t)
-    return F.l1_loss(noise, noise_pred)
+# Conduct the sampling
 
-# Load up Data
-
-IMG_SIZE = 256
-BATCH_SIZE = 8
-
-data = dataloader.load_transformed_conditional_dataset(IMG_SIZE)
-datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
-
-# Create Model
-unet = model.ChannelConditionalUNET()
-unet.to(device)
-optimizer = Adam(unet.parameters(), lr=0.001)
-epochs = 0
-
-for epoch in tqdm(range(epochs), desc='Training Progress'):
-    for step, batch in enumerate(datald):
-        img = batch[0]
-        condition = batch[1]
-        optimizer.zero_grad()
-        t = torch.randint(0, T, (BATCH_SIZE,), device=device).long()
-        loss = get_loss(unet, img, condition, t)
-        loss.backward()
-        optimizer.step()
-        if step % 1000 == 0:
-            print(f"Step {step:03d} Loss: {loss.item()}")
-
-        if epoch % 1 == 0 and step == 0:
-            print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
-
-# Need to know what experiment we are running to save model to proper folder
-current_experiment_name = 'test_exp'
-os.chdir('..')
-os.chdir('experiments')
-exp_path = os.path.join(os.getcwd(), current_experiment_name)
-
-model_name = 'test_model_cond_v1'
-
-torch.save(unet, os.path.join(exp_path, model_name))
-
+for i in range(desired_num_samples):
+    if conditional:
+        sample_plot_image_cond()
+    else:
+        sample_plot_image()
