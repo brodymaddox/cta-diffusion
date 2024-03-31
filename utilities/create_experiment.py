@@ -13,10 +13,10 @@ from sklearn import preprocessing
 upper_slice = 132 # Max 132
 lower_slice = 0 # Min 0
 slice_stride = 1 # Min 1 Max (upper-lower)
-experiment_name = 'test_exp'
+experiment_name = 'all_condition_all_slice'
 
 # Set which columns experiment will be conditioned on
-condition_columns = ['slice', 'age', 'gender', 'race', 'cta_occlusion_site'] # Options: slice, age, gender, race, cta_occlusion_site, tpa, lkw2ct, baseline_nihss, lvo
+condition_columns = ['slice', 'age', 'gender', 'race', 'cta_occlusion_site', 'tpa', 'lkw2ct', 'baseline_nihss', 'lvo'] # Options: slice, age, gender, race, cta_occlusion_site, tpa, lkw2ct, baseline_nihss, lvo
 
 # Get array of all slices for this experiment
 experiment_slices = [x for x in range(lower_slice, upper_slice, slice_stride)]

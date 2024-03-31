@@ -86,7 +86,7 @@ def sample_plot_image():
     # Sample noise
     img_size = IMG_SIZE
     img = torch.randn((1, 1, img_size, img_size), device=device)
-    cond = torch.randn(1, 2, device=device)
+    cond = torch.randn(1, 8, device=device)
     print(cond)
     plt.figure(figsize=(15,15))
     plt.axis('off')
@@ -115,14 +115,14 @@ def get_loss(model, x_0, condition, t):
 IMG_SIZE = 256
 BATCH_SIZE = 8
 
-data = dataloader.load_transformed_conditional_dataset(IMG_SIZE)
+data = dataloader.load_transformed_conditional_dataset(IMG_SIZE, conditioning_columns=['slice', 'age', 'race', 'cta_occlusion_site', 'tpa', 'lkw2ct', 'baseline_nihss', 'lvo'])
 datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
 # Create Model
 unet = model.ChannelConditionalUNET()
 unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
-epochs = 0
+epochs = 100
 
 for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):
@@ -140,12 +140,13 @@ for epoch in tqdm(range(epochs), desc='Training Progress'):
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
 
 # Need to know what experiment we are running to save model to proper folder
-current_experiment_name = 'test_exp'
+current_experiment_name = 'all_condition_all_slice'
 os.chdir('..')
 os.chdir('experiments')
 exp_path = os.path.join(os.getcwd(), current_experiment_name)
 
-model_name = 'test_model_cond_v1'
+model_name = 'all_conditions(no_gender)_100_epoch.pt'
 
-torch.save(unet, os.path.join(exp_path, model_name))
+torch.save({'state_dict' : unet.state_dict(), 'optimizer' : optimizer.state_dict()}, os.path.join(exp_path, model_name))
 
+sample_plot_image()

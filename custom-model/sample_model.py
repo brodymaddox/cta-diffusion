@@ -3,13 +3,17 @@ import os
 import dataloader
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
+import model
 
 # setup sample
 
-experiment_to_sample = 'test_exp'
-model_to_sample = 'test_model_v1'
-desired_num_samples = 1
-conditional = False # If true, sample conditionally
+experiment_to_sample = 'all_condition_all_slice'
+model_to_sample = 'all_conditions(no_gender)_100_epoch.pt'
+desired_num_samples = 5
+
+# Are we doing a conditional test
+conditional = True # If true, sample conditionallyi
+
 IMG_SIZE = 256
 
 # Move to experiments
@@ -19,8 +23,12 @@ os.chdir('experiments')
 os.chdir(experiment_to_sample)
 
 # Load Model
-unet = torch.load(os.path.join(os.getcwd(), model_to_sample))
-unet.eval()
+model_dict = torch.load(os.path.join(os.getcwd(), model_to_sample))
+if conditional:
+    unet = model.ChannelConditionalUNET().to('cuda')
+else:
+    unet = model.SimpleUnet().to('cuda')
+unet.load_state_dict(model_dict['state_dict'])
 
 # Code to actualy sample (directly from control)
 
@@ -148,7 +156,8 @@ def sample_plot_image_cond():
     # Sample noise
     img_size = IMG_SIZE
     img = torch.randn((1, 1, img_size, img_size), device=device)
-    cond = torch.randn(1, 2, device=device)
+    #cond = torch.randn(1, 8, device=device)
+    cond = torch.zeros(1,8,device=device)
     print(cond)
     plt.figure(figsize=(15,15))
     plt.axis('off')

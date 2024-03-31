@@ -117,8 +117,8 @@ class ChannelConditionalUNET(nn.Module):
         image_channels = 1
         self.batch_size = 8
         self.image_sizes = [(256,256), (128,128), (64,64), (32,32), (16,16)]
-        self.init_cond_channels = 2
-        self.conditional_channels = [2, 2, 2, 2, 2]
+        self.init_cond_channels = 8
+        self.conditional_channels = [8, 8, 8, 8, 8]
         self.up_conditional_channels = self.conditional_channels[::-1]
         self.up_img_sizes = self.image_sizes[::-1]
         down_channels = (64, 128, 256, 512, 1024)
@@ -144,7 +144,8 @@ class ChannelConditionalUNET(nn.Module):
         self.ups = nn.ModuleList([Block(up_channels[i] + int(self.up_conditional_channels[i]/2), up_channels[i+1], \
                                         time_emb_dim, up=True) for i in range(len(up_channels)-1)])
         # Quick and dirty fix, the up block doubles the inputted channels to account for residuals, so we only want to add half of the conditioning channels
-        
+        # This forces the number of conditioning channels to be even to work
+
         self.output = nn.Conv2d(up_channels[-1], 1, out_dim)
 
     def forward(self, x, condition, timestep):

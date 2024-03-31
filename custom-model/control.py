@@ -120,7 +120,7 @@ datald = dataloader.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_l
 unet = model.SimpleUnet()
 unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
-epochs = 0
+epochs = 100
 
 for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):
@@ -136,11 +136,13 @@ for epoch in tqdm(range(epochs), desc='Training Progress'):
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
 
 # Need to know what experiment we are running to save model to proper folder
-current_experiment_name = 'test_exp'
+current_experiment_name = 'all_condition_all_slice'
 os.chdir('..')
 os.chdir('experiments')
 exp_path = os.path.join(os.getcwd(), current_experiment_name)
 
-model_name = 'test_model_v1'
+model_name = 'unconditional_100_epoch.pt'
 
-torch.save(unet, os.path.join(exp_path, model_name))
+torch.save({'state_dict' : unet.state_dict(), 'optimizer' : optimizer.state_dict()}, os.path.join(exp_path, model_name))
+
+sample_plot_image()

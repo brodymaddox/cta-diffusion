@@ -46,7 +46,7 @@ def load_transformed_dataset(IMG_SIZE):
         transforms.Lambda(lambda t: (t*2)-1) # Scales between [-1,1]
     ]
     data_transform = transforms.Compose(data_transforms)
-    data = cta_dataset.CTAngiographyNoConditionDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform)
+    data = cta_dataset.CTAngiographyNoConditionDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/all_condition_all_slice/', csv='annotations.csv', transform=data_transform)
     return data
 
 def load_transformed_conditional_dataset(IMG_SIZE, conditioning_columns=[]):
@@ -57,7 +57,7 @@ def load_transformed_conditional_dataset(IMG_SIZE, conditioning_columns=[]):
         transforms.Lambda(lambda t: (t*2)-1) # Scales between [-1,1]
     ]
     data_transform = transforms.Compose(data_transforms)
-    data = cta_dataset.CTAngiographyDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/test_exp/', csv='annotations.csv', transform=data_transform, conditioning=True, 
+    data = cta_dataset.CTAngiographyDataset(root_dir='/home/brody/Laboratory/cta-diffusion/experiments/all_condition_all_slice/', csv='annotations.csv', transform=data_transform, conditioning=True, 
                                             condition_columns=conditioning_columns)
     return data
 
