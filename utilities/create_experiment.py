@@ -13,10 +13,17 @@ from sklearn import preprocessing
 upper_slice = 132 # Max 132
 lower_slice = 0 # Min 0
 slice_stride = 1 # Min 1 Max (upper-lower)
-experiment_name = 'all_condition_all_slice'
+experiment_name = 'acas'
 
 # Set which columns experiment will be conditioned on
-condition_columns = ['slice', 'age', 'gender', 'race', 'cta_occlusion_site', 'tpa', 'lkw2ct', 'baseline_nihss', 'lvo'] # Options: slice, age, gender, race, cta_occlusion_site, tpa, lkw2ct, baseline_nihss, lvo
+condition_columns = ['slice', 'age', 'race', 'cta_occlusion_site', 'tpa', 'lkw2ct', 'baseline_nihss', 'lvo'] # Options: slice, age, gender, race, cta_occlusion_site, tpa, lkw2ct, baseline_nihss, lvo
+
+# Set list of test prompt condiitons
+test_conditions = [
+        [0,0,0,0,0,0,0,0] # Test Zeros Condition 
+    ]
+
+
 
 # Get array of all slices for this experiment
 experiment_slices = [x for x in range(lower_slice, upper_slice, slice_stride)]
@@ -40,6 +47,9 @@ exp_path = os.getcwd()
 
 # Create Img Folder
 os.mkdir('images')
+
+# Create Generated Images Folder
+os.mkdir('gen_images')
 
 # Move to images folder
 os.chdir('images')
@@ -105,11 +115,14 @@ for slice in experiment_slices:
             shutil.copy(os.path.join(path, file), img_path)
 
 # Create column names for annotations.csv
-final_column_names = condition_columns
+final_column_names = condition_columns.copy()
 final_column_names.insert(0, 'subjId')
 
 # Turn annotations into DataFrame
 annotations_df = pd.DataFrame(annotations, columns=final_column_names)
+
+# Turn test conditions into DataFrame
+test_conditions_df = pd.DataFrame(test_conditions, columns=condition_columns)
 
 # Normalize annotations.csv
 x = annotations_df.values
@@ -118,8 +131,17 @@ x_scaled = min_max_scaler.fit_transform(x[:,1:])
 x_combined = np.hstack((x[:, [0]], x_scaled))
 annotations_df_normalized = pd.DataFrame(x_combined, columns=final_column_names)
 
+# Normalize test conditions, write to new DataFrame
+tc = test_conditions_df.values
+tc_scaled = min_max_scaler.transform(tc)
+test_conditions_df_normalized = pd.DataFrame(tc_scaled, columns=condition_columns)
+
+
 # Write annotations.csv
 annotations_df_normalized.to_csv(os.path.join(exp_path, 'annotations.csv'), index=False)
+
+# Write test_conditions.csv
+test_conditions_df_normalized.to_csv(os.path.join(exp_path, 'test_conditions.csv'), index=False)
 
 
 

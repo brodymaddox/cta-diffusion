@@ -122,6 +122,9 @@ unet.to(device)
 optimizer = Adam(unet.parameters(), lr=0.001)
 epochs = 100
 
+# Store Loss for each Epoch
+losses = []
+
 for epoch in tqdm(range(epochs), desc='Training Progress'):
     for step, batch in enumerate(datald):
         optimizer.zero_grad()
@@ -135,14 +138,21 @@ for epoch in tqdm(range(epochs), desc='Training Progress'):
         if epoch % 1 == 0 and step == 0:
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
 
+    # Store Loss
+    losses.append(loss.item())
+
+
 # Need to know what experiment we are running to save model to proper folder
-current_experiment_name = 'all_condition_all_slice'
+current_experiment_name = 'acas'
 os.chdir('..')
 os.chdir('experiments')
 exp_path = os.path.join(os.getcwd(), current_experiment_name)
 
-model_name = 'unconditional_100_epoch.pt'
+model_name = 'ncas_100_epoch.pt'
 
 torch.save({'state_dict' : unet.state_dict(), 'optimizer' : optimizer.state_dict()}, os.path.join(exp_path, model_name))
 
 sample_plot_image()
+
+# Plot loss vs. time
+plt.plot(range(epochs), losses)

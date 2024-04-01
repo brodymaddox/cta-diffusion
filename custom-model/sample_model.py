@@ -4,12 +4,21 @@ import dataloader
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 import model
+import pandas as pd
+from torchvision import transforms
+from PIL import Image
 
 # setup sample
 
-experiment_to_sample = 'all_condition_all_slice'
-model_to_sample = 'all_conditions(no_gender)_100_epoch.pt'
-desired_num_samples = 5
+experiment_to_sample = 'acas'
+model_to_sample = 'acas_15_epoch.pt'
+desired_num_samples = 10
+
+# Which test condition are we using?
+tc = 0
+
+# Setup image save counter
+d = 0
 
 # Are we doing a conditional test
 conditional = True # If true, sample conditionallyi
@@ -21,6 +30,14 @@ IMG_SIZE = 256
 os.chdir('..')
 os.chdir('experiments')
 os.chdir(experiment_to_sample)
+
+# Get path for generated images
+os.chdir('gen_images')
+gen_image_path = os.getcwd()
+os.chdir('..') # Change back
+
+# Store Conditions to Dataframe
+test_conditions = pd.read_csv('test_conditions.csv')
 
 # Load Model
 model_dict = torch.load(os.path.join(os.getcwd(), model_to_sample))
@@ -111,12 +128,29 @@ def sample_plot_image():
     plt.axis('off')
     num_images = 10
     stepsize = int(T/num_images)
+    
+    # Reference global d
+    global d
+
+    # Setup image_transform
+    image_transform = transforms.Compose([
+        transforms.Normalize(mean=[-1.0], std=[2.0]),
+        transforms.ToPILImage()
+
+    ])
 
     for i in range(0,T)[::-1]:
         t = torch.full((1,), i, device=device, dtype=torch.long)
         img = sample_timestep(img, t)
         # Edit: This is to maintain the natural range of the distribution
         img = torch.clamp(img, -1.0, 1.0)
+        
+        if i == 0: # If we are at the fully denoised image
+            img_cp = torch.clone(img) # Copy the Tensor
+            pil_image = image_transform(img_cp.squeeze().unsqueeze(0)) # Convert the squeezed tensor (remove batch dim) to a PIL Image
+            pil_image.save(os.path.join(gen_image_path, str(d) + model_to_sample + '.png')) # Save image as d counter plus .png to generated images folder
+            d = d + 1 # Increment D
+
         if i % stepsize == 0:
             plt.subplot(1, num_images, int(i/stepsize)+1)
             dataloader.show_tensor_image(img.detach().cpu())
@@ -156,19 +190,31 @@ def sample_plot_image_cond():
     # Sample noise
     img_size = IMG_SIZE
     img = torch.randn((1, 1, img_size, img_size), device=device)
-    #cond = torch.randn(1, 8, device=device)
-    cond = torch.zeros(1,8,device=device)
-    print(cond)
+    cond = torch.FloatTensor(test_conditions.loc[tc,:].values.flatten().tolist()) # Load the specified condition as what we are testing
+    cond = cond.unsqueeze(0) # Add batch dim of 1
     plt.figure(figsize=(15,15))
     plt.axis('off')
     num_images = 10
     stepsize = int(T/num_images)
+
+    image_transform = transforms.Compose([
+        transforms.Normalize(mean=[-1.0], std=[2.0]),
+        transforms.ToPILImage()
+
+    ])
 
     for i in range(0,T)[::-1]:
         t = torch.full((1,), i, device=device, dtype=torch.long)
         img = sample_timestep_cond(img,cond,t)
         # Edit: This is to maintain the natural range of the distribution
         img = torch.clamp(img, -1.0, 1.0)
+
+        if i == 0: # If we are at the fully denoised image
+            img_cp = torch.clone(img) # Copy the Tensor
+            pil_image = image_transform(img_cp.squeeze().unsqueeze(0)) # Convert the squeezed tensor (remove batch dim) to a PIL Image
+            pil_image.save(os.path.join(gen_image_path, str(d) + model_to_sample + '.png')) # Save image as d counter plus .png to generated images folder
+            d = d + 1 # Increment D
+
         if i % stepsize == 0:
             plt.subplot(1, num_images, int(i/stepsize)+1)
             dataloader.show_tensor_image(img.detach().cpu())
